@@ -1,18 +1,16 @@
 using Gorilla.Domain.Models.Repositories;
-using Microsoft.Extensions.Configuration;
 
 namespace Gorilla.Domain.Services;
 
 public interface IGitRepositoryService
 {
-    Task<Repository> CreateRepositoryAsync(string name, long ownerId, string description = "", bool isPrivate = false);
-}
+    void InitializeRepository(string username, string repository, bool isBare = true);
 
-public class GitRepositoryService(IConfiguration configuration) : IGitRepositoryService
-{
-    public async Task<Repository> CreateRepositoryAsync(string name, long ownerId, string description = "",
-        bool isPrivate = false)
-    {
-        throw new NotImplementedException();
-    }
+    bool RepositoryExistsAsync(string username, string repository);
+
+    Task HandleInfoRefsAsync(string username, string repository, string service, Stream outputStream);
+
+    Task HandleUploadPackAsync(string username, string repository, Stream inputStream, Stream outputStream);
+
+    Task HandleReceivePackAsync(string username, string repository, Stream inputStream, Stream outputStream);
 }

@@ -1,5 +1,5 @@
 namespace Gorilla.Domain.Models.Repositories;
 
-public class Repository : EntityBase<long>
+public class GitRepository : EntityBase<long>
 {
 }
