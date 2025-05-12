@@ -1,4 +1,5 @@
 using Gorilla.Domain.Services;
+using GorillaBackend.Middlewares;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,7 +19,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
+app.UseMiddleware<GitHttpMiddleware>();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();

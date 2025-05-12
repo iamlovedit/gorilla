@@ -12,6 +12,7 @@ public class RepositoryController(IGitRepositoryService gitRepositoryService) : 
     [HttpPost("create")]
     public Task<IActionResult> CreateRepository([FromBody] CreateRepositoryDto repositoryDto)
     {
-        return Task.FromResult<IActionResult>(Ok(repositoryDto));
+        gitRepositoryService.InitializeRepository("young", repositoryDto.Name);
+        return Task.FromResult<IActionResult>(Ok("created done！"));
     }
 }
