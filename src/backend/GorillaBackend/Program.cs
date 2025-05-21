@@ -19,7 +19,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-app.UseMiddleware<GitHttpMiddleware>();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
