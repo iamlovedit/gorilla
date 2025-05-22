@@ -1,10 +1,12 @@
 using Gorilla.Domain.Services;
-using GorillaBackend.Middlewares;
+using GorillaBackend.Services;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
-services.TryAddScoped<IGitRepositoryService, GitRepositoryService>();
+services.TryAddScoped<IGitService, GitService>();
+
+services.Configure<GitServerSettings>(builder.Configuration.GetSection("GitServerSettings"));
 
 services.AddEndpointsApiExplorer();
 services.AddSwaggerGen();

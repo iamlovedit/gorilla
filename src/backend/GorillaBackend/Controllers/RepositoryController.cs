@@ -7,12 +7,12 @@ namespace GorillaBackend.Controllers;
 
 [ApiController]
 [Route("repository")]
-public class RepositoryController(IGitRepositoryService gitRepositoryService) : ControllerBase
+public class RepositoryController(IGitService gitService) : ControllerBase
 {
     [HttpPost("create")]
     public Task<IActionResult> CreateRepository([FromBody] CreateRepositoryDto repositoryDto)
     {
-        gitRepositoryService.InitializeRepository("young", repositoryDto.Name);
+        gitService.InitializeRepository("young", repositoryDto.Name);
         return Task.FromResult<IActionResult>(Ok("created done！"));
     }
 }
