@@ -12,7 +12,7 @@ public class RepositoryController(IGitService gitService) : ControllerBase
     [HttpPost("create")]
     public Task<IActionResult> CreateRepository([FromBody] CreateRepositoryDto repositoryDto)
     {
-        gitService.InitializeRepository("young", repositoryDto.Name);
+        gitService.InitializeRepository("young", repositoryDto.Name,false);
         return Task.FromResult<IActionResult>(Ok("created done！"));
     }
 }

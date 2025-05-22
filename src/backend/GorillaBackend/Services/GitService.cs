@@ -19,6 +19,24 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
         var repoPath = GetRepositoryPath(username, repository);
         Directory.CreateDirectory(Path.GetDirectoryName(repoPath) ?? throw new InvalidOperationException());
         Repository.Init(repoPath, isBare);
+
+        if (!isBare)
+        {
+            // 为非bare仓库创建main分支和初始commit
+            using var repo = new Repository(repoPath);
+            // 创建一个README文件
+            var readmePath = Path.Combine(repo.Info.WorkingDirectory, "README.md");
+            File.WriteAllText(readmePath, "# New Repository\n");
+            Commands.Stage(repo, "README.md");
+            var author = new Signature("system", "system@example.com", DateTimeOffset.Now);
+            repo.Commit("Initial commit", author, author);
+            // 创建main分支（如果不是main则切换到main）
+            if (repo.Head.FriendlyName != "main")
+            {
+                repo.CreateBranch("main");
+                Commands.Checkout(repo, "main");
+            }
+        }
     }
 
     public bool RepositoryExistsAsync(string username, string repository)
