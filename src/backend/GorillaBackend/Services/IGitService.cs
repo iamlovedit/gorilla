@@ -10,4 +10,6 @@ public interface IGitService
 
     Task<bool> ExecuteGitCommandAsync(string repoName, string command, string args, Stream? requestBody,
         Stream responseBody);
+
+    Task<bool> ExecuteGitAdvertisementCommandAsync(string repoName, string service, Stream responseBody);
 }

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using Gorilla.Domain.Services;
 using LibGit2Sharp;
 using Microsoft.Extensions.Options;
@@ -43,8 +44,8 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
         var startInfo = new ProcessStartInfo
         {
             FileName = _gitExePath,
-            Arguments = $"{command} --stateless-rpc {args}", // --stateless-rpc 是Smart HTTP的关键
-            WorkingDirectory = fullRepoPath, // 确保在仓库目录下执行
+            Arguments = $"{command} --stateless-rpc \"{fullRepoPath}\"", // 关键：<directory>参数为仓库绝对路径
+            WorkingDirectory = _repositoryPath, // 或 Path.GetDirectoryName(fullRepoPath)
             UseShellExecute = false,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
@@ -90,6 +91,69 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
             return false;
         }
     }
+
+    public async Task<bool> ExecuteGitAdvertisementCommandAsync(string repoName, string service, Stream responseBody)
+    {
+        var fullRepoPath = Path.Combine(_repositoryPath, repoName + ".git");
+        if (!Directory.Exists(fullRepoPath))
+        {
+            logger.LogWarning($"Repository not found: {fullRepoPath}");
+            return false;
+        }
+
+        // Write the Git protocol service header
+        var serviceHeader = $"# service={service}\n";
+        var headerBytes = Encoding.UTF8.GetBytes(serviceHeader);
+        var headerPktLine = $"{(headerBytes.Length + 4).ToString("x4")}{serviceHeader}"; // 4 for length itself
+        var headerPktLineBytes = Encoding.UTF8.GetBytes(headerPktLine);
+        await responseBody.WriteAsync(headerPktLineBytes, 0, headerPktLineBytes.Length);
+        // Write the FLUSH packet (0000)
+        await responseBody.WriteAsync(Encoding.UTF8.GetBytes("0000"), 0, 4);
+        var subcommand = service.Replace("git-", "");
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = _gitExePath,
+            Arguments = $"{subcommand} --stateless-rpc --advertise-refs \"{fullRepoPath}\"", // 关键：加上仓库路径
+            WorkingDirectory = _repositoryPath, // 或 Path.GetDirectoryName(fullRepoPath)
+            UseShellExecute = false,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        logger.LogInformation(
+            $"Executing Git command for advertisement: {startInfo.FileName} {startInfo.Arguments} in {startInfo.WorkingDirectory}");
+        using var process = new Process();
+        process.StartInfo = startInfo;
+        try
+        {
+            process.Start();
+            // Close standard input immediately as there's no body for GET requests
+            process.StandardInput.Close();
+            // Stream Git process output directly to the response body
+            await process.StandardOutput.BaseStream.CopyToAsync(responseBody);
+            await process.WaitForExitAsync();
+            var errorOutput = await process.StandardError.ReadToEndAsync();
+            if (!string.IsNullOrWhiteSpace(errorOutput))
+            {
+                logger.LogError($"Git command stderr: {errorOutput}");
+            }
+
+            if (process.ExitCode == 0)
+            {
+                return true;
+            }
+
+            logger.LogError($"Git command exited with code {process.ExitCode} for path: {fullRepoPath}");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, $"Error executing Git advertisement command for repository {repoName}");
+            return false;
+        }
+    }
+
 
     private string GetRepositoryPath(string username, string repository)
     {
