@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using Gorilla.Domain.Services;
+using GorillaBackend.Infrastructure;
 using LibGit2Sharp;
 using Microsoft.Extensions.Options;
 
@@ -20,23 +21,28 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
         Directory.CreateDirectory(Path.GetDirectoryName(repoPath) ?? throw new InvalidOperationException());
         Repository.Init(repoPath, isBare);
 
-        if (!isBare)
+        if (isBare)
         {
-            // 为非bare仓库创建main分支和初始commit
-            using var repo = new Repository(repoPath);
-            // 创建一个README文件
-            var readmePath = Path.Combine(repo.Info.WorkingDirectory, "README.md");
-            File.WriteAllText(readmePath, "# New Repository\n");
-            Commands.Stage(repo, "README.md");
-            var author = new Signature("system", "system@example.com", DateTimeOffset.Now);
-            repo.Commit("Initial commit", author, author);
-            // 创建main分支（如果不是main则切换到main）
-            if (repo.Head.FriendlyName != "main")
-            {
-                repo.CreateBranch("main");
-                Commands.Checkout(repo, "main");
-            }
+            return;
         }
+
+        // 为非bare仓库创建main分支和初始commit
+        using var repo = new Repository(repoPath);
+        // 创建一个README文件
+        var readmePath = Path.Combine(repo.Info.WorkingDirectory, "README.md");
+        File.WriteAllText(readmePath, "# New Repository\n");
+        Commands.Stage(repo, "README.md");
+        var author = new Signature("system", "system@example.com", DateTimeOffset.Now);
+        repo.Commit("Initial commit", author, author);
+        var branch = "master";
+        // 创建main分支（如果不是main则切换到main）
+        if (repo.Head.FriendlyName == branch)
+        {
+            return;
+        }
+
+        repo.CreateBranch(branch);
+        Commands.Checkout(repo, branch);
     }
 
     public bool RepositoryExistsAsync(string username, string repository)
@@ -55,7 +61,7 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
         var fullRepoPath = Path.Combine(_repositoryPath, repoName + ".git"); // 约定仓库名为 repoName.git
         if (!Directory.Exists(fullRepoPath))
         {
-            logger.LogWarning($"Repository not found: {fullRepoPath}");
+            logger.LogWarning("Repository not found: {FullRepoPath}", fullRepoPath);
             return false; // 仓库不存在
         }
 
@@ -71,7 +77,8 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
             CreateNoWindow = true // 不显示窗口
         };
         logger.LogInformation(
-            $"Executing Git command: {startInfo.FileName} {startInfo.Arguments} in {startInfo.WorkingDirectory}");
+            "Executing Git command: {StartInfoFileName} {StartInfoArguments} in {StartInfoWorkingDirectory}",
+            startInfo.FileName, startInfo.Arguments, startInfo.WorkingDirectory);
         using var process = new Process();
         process.StartInfo = startInfo;
         try
@@ -92,7 +99,7 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
             var errorOutput = await process.StandardError.ReadToEndAsync();
             if (!string.IsNullOrWhiteSpace(errorOutput))
             {
-                logger.LogError($"Git command stderr: {errorOutput}");
+                logger.LogError("Git command stderr: {ErrorOutput}", errorOutput);
             }
 
             if (process.ExitCode == 0)
@@ -100,12 +107,13 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
                 return true;
             }
 
-            logger.LogError($"Git command exited with code {process.ExitCode} for path: {fullRepoPath}");
+            logger.LogError("Git command exited with code {ProcessExitCode} for path: {FullRepoPath}", process.ExitCode,
+                fullRepoPath);
             return false;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error executing Git command for repository {repoName}");
+            logger.LogError(ex, "Error executing Git command for repository {RepoName}", repoName);
             return false;
         }
     }
@@ -115,18 +123,18 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
         var fullRepoPath = Path.Combine(_repositoryPath, repoName + ".git");
         if (!Directory.Exists(fullRepoPath))
         {
-            logger.LogWarning($"Repository not found: {fullRepoPath}");
+            logger.LogWarning("Repository not found: {FullRepoPath}", fullRepoPath);
             return false;
         }
 
         // Write the Git protocol service header
         var serviceHeader = $"# service={service}\n";
         var headerBytes = Encoding.UTF8.GetBytes(serviceHeader);
-        var headerPktLine = $"{(headerBytes.Length + 4).ToString("x4")}{serviceHeader}"; // 4 for length itself
+        var headerPktLine = $"{headerBytes.Length + 4:x4}{serviceHeader}"; // 4 for length itself
         var headerPktLineBytes = Encoding.UTF8.GetBytes(headerPktLine);
-        await responseBody.WriteAsync(headerPktLineBytes, 0, headerPktLineBytes.Length);
+        await responseBody.WriteAsync(headerPktLineBytes);
         // Write the FLUSH packet (0000)
-        await responseBody.WriteAsync(Encoding.UTF8.GetBytes("0000"), 0, 4);
+        await responseBody.WriteAsync("0000"u8.ToArray().AsMemory(0, 4));
         var subcommand = service.Replace("git-", "");
         var startInfo = new ProcessStartInfo
         {
@@ -140,7 +148,8 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
             CreateNoWindow = true
         };
         logger.LogInformation(
-            $"Executing Git command for advertisement: {startInfo.FileName} {startInfo.Arguments} in {startInfo.WorkingDirectory}");
+            "Executing Git command for advertisement: {StartInfoFileName} {StartInfoArguments} in {StartInfoWorkingDirectory}"
+            , startInfo.FileName, startInfo.Arguments, startInfo.WorkingDirectory);
         using var process = new Process();
         process.StartInfo = startInfo;
         try
@@ -154,7 +163,7 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
             var errorOutput = await process.StandardError.ReadToEndAsync();
             if (!string.IsNullOrWhiteSpace(errorOutput))
             {
-                logger.LogError($"Git command stderr: {errorOutput}");
+                logger.LogError("Git command stderr: {ErrorOutput}", errorOutput);
             }
 
             if (process.ExitCode == 0)
@@ -162,12 +171,13 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
                 return true;
             }
 
-            logger.LogError($"Git command exited with code {process.ExitCode} for path: {fullRepoPath}");
+            logger.LogError("Git command exited with code {ProcessExitCode} for path: {FullRepoPath}", process.ExitCode,
+                fullRepoPath);
             return false;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Error executing Git advertisement command for repository {repoName}");
+            logger.LogError(ex, "Error executing Git advertisement command for repository {RepoName}", repoName);
             return false;
         }
     }
@@ -177,10 +187,4 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
     {
         return Path.Combine(_repositoryPath, username, $"{repository}.git");
     }
-}
-
-public class GitServerSettings
-{
-    public string GitExePath { get; set; }
-    public string RepositoryRootPath { get; set; }
 }

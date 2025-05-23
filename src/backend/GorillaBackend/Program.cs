@@ -1,4 +1,5 @@
 using Gorilla.Domain.Services;
+using GorillaBackend.Infrastructure;
 using GorillaBackend.Services;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
