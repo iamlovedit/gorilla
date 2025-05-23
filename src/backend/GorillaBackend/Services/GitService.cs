@@ -15,34 +15,10 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
     private readonly string _gitExePath = gitSettings.Value.GitExePath ??
                                           throw new NullReferenceException("git execute path is null");
 
-    public void InitializeRepository(string username, string repository, bool isBare = true)
+    public void InitializeRepository(string username, string repository)
     {
         var repoPath = GetRepositoryPath(username, repository);
         Directory.CreateDirectory(Path.GetDirectoryName(repoPath) ?? throw new InvalidOperationException());
-        Repository.Init(repoPath, isBare);
-
-        if (isBare)
-        {
-            return;
-        }
-
-        // 为非bare仓库创建main分支和初始commit
-        using var repo = new Repository(repoPath);
-        // 创建一个README文件
-        var readmePath = Path.Combine(repo.Info.WorkingDirectory, "README.md");
-        File.WriteAllText(readmePath, "# New Repository\n");
-        Commands.Stage(repo, "README.md");
-        var author = new Signature("system", "system@example.com", DateTimeOffset.Now);
-        repo.Commit("Initial commit", author, author);
-        var branch = "master";
-        // 创建main分支（如果不是main则切换到main）
-        if (repo.Head.FriendlyName == branch)
-        {
-            return;
-        }
-
-        repo.CreateBranch(branch);
-        Commands.Checkout(repo, branch);
     }
 
     public bool RepositoryExistsAsync(string username, string repository)

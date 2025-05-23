@@ -4,7 +4,7 @@ namespace Gorilla.Domain.Services;
 
 public interface IGitService
 {
-    void InitializeRepository(string username, string repository, bool isBare = true);
+    void InitializeRepository(string username, string repository);
 
     bool RepositoryExistsAsync(string username, string repository);
 
