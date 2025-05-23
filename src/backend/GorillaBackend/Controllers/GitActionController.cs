@@ -1,5 +1,6 @@
 using Gorilla.Domain.Services;
 using Microsoft.AspNetCore.Mvc;
+
 namespace GorillaBackend.Controllers;
 
 [ApiController]
@@ -17,7 +18,7 @@ public class GitActionController(IGitService gitService) : ControllerBase
         var ok = await gitService.ExecuteGitCommandAsync(
             repoName,
             "upload-pack",
-            "",
+            string.Empty,
             Request.Body,
             Response.Body
         );
@@ -40,7 +41,7 @@ public class GitActionController(IGitService gitService) : ControllerBase
         var ok = await gitService.ExecuteGitCommandAsync(
             repoName,
             "receive-pack",
-            "",
+            string.Empty,
             Request.Body,
             Response.Body
         );
