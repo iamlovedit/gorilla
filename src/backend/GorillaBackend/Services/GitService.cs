@@ -19,6 +19,7 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
     {
         var repoPath = GetRepositoryPath(username, repository);
         Directory.CreateDirectory(Path.GetDirectoryName(repoPath) ?? throw new InvalidOperationException());
+        Repository.Init(repoPath, true);
     }
 
     public bool RepositoryExistsAsync(string username, string repository)
