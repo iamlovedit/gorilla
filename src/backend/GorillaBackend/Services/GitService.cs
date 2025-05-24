@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Text;
-using Gorilla.Domain.Services;
 using GorillaBackend.Infrastructure;
 using LibGit2Sharp;
 using Microsoft.Extensions.Options;
@@ -31,68 +30,17 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
     public async Task<bool> ExecuteGitCommandAsync(
         string repoName,
         string command,
-        string args,
         Stream? requestBody,
         Stream responseBody)
     {
-        var fullRepoPath = Path.Combine(_repositoryPath, repoName + ".git"); // 约定仓库名为 repoName.git
+        var fullRepoPath = Path.Combine(_repositoryPath, repoName + ".git");
         if (!Directory.Exists(fullRepoPath))
         {
             logger.LogWarning("Repository not found: {FullRepoPath}", fullRepoPath);
-            return false; // 仓库不存在
-        }
-
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = _gitExePath,
-            Arguments = $"{command} --stateless-rpc \"{fullRepoPath}\"", // 关键：<directory>参数为仓库绝对路径
-            WorkingDirectory = _repositoryPath, // 或 Path.GetDirectoryName(fullRepoPath)
-            UseShellExecute = false,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true // 不显示窗口
-        };
-        logger.LogInformation(
-            "Executing Git command: {StartInfoFileName} {StartInfoArguments} in {StartInfoWorkingDirectory}",
-            startInfo.FileName, startInfo.Arguments, startInfo.WorkingDirectory);
-        using var process = new Process();
-        process.StartInfo = startInfo;
-        try
-        {
-            process.Start();
-            // 将HTTP请求体写入Git进程的标准输入
-            if (requestBody is { CanRead: true })
-            {
-                await requestBody.CopyToAsync(process.StandardInput.BaseStream);
-                process.StandardInput.Close(); // 关闭输入流，Smarter HTTP协议要求这样
-            }
-
-            // 将Git进程的标准输出直接写入HTTP响应体
-            await process.StandardOutput.BaseStream.CopyToAsync(responseBody);
-            // 等待进程结束
-            await process.WaitForExitAsync();
-            // 读取标准错误输出，用于调试和日志记录
-            var errorOutput = await process.StandardError.ReadToEndAsync();
-            if (!string.IsNullOrWhiteSpace(errorOutput))
-            {
-                logger.LogError("Git command stderr: {ErrorOutput}", errorOutput);
-            }
-
-            if (process.ExitCode == 0)
-            {
-                return true;
-            }
-
-            logger.LogError("Git command exited with code {ProcessExitCode} for path: {FullRepoPath}", process.ExitCode,
-                fullRepoPath);
             return false;
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error executing Git command for repository {RepoName}", repoName);
-            return false;
-        }
+        var arguments = $"{command} --stateless-rpc \"{fullRepoPath}\"";
+        return await RunGitProcessAsync(arguments, requestBody, responseBody, true, fullRepoPath, $"Git command for repository {repoName}");
     }
 
     public async Task<bool> ExecuteGitAdvertisementCommandAsync(string repoName, string service, Stream responseBody)
@@ -103,21 +51,34 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
             logger.LogWarning("Repository not found: {FullRepoPath}", fullRepoPath);
             return false;
         }
-
         // Write the Git protocol service header
         var serviceHeader = $"# service={service}\n";
         var headerBytes = Encoding.UTF8.GetBytes(serviceHeader);
-        var headerPktLine = $"{headerBytes.Length + 4:x4}{serviceHeader}"; // 4 for length itself
+        var headerPktLine = $"{headerBytes.Length + 4:x4}{serviceHeader}";
         var headerPktLineBytes = Encoding.UTF8.GetBytes(headerPktLine);
         await responseBody.WriteAsync(headerPktLineBytes);
-        // Write the FLUSH packet (0000)
         await responseBody.WriteAsync("0000"u8.ToArray().AsMemory(0, 4));
         var subcommand = service.Replace("git-", "");
+        var arguments = $"{subcommand} --stateless-rpc --advertise-refs \"{fullRepoPath}\"";
+        return await RunGitProcessAsync(arguments, null, responseBody, false, fullRepoPath, $"Git advertisement command for repository {repoName}");
+    }
+
+    /// <summary>
+    /// 统一处理Git进程的启动、IO、日志和错误。
+    /// </summary>
+    private async Task<bool> RunGitProcessAsync(
+        string arguments,
+        Stream? requestBody,
+        Stream responseBody,
+        bool hasRequestBody,
+        string fullRepoPath,
+        string logContext)
+    {
         var startInfo = new ProcessStartInfo
         {
             FileName = _gitExePath,
-            Arguments = $"{subcommand} --stateless-rpc --advertise-refs \"{fullRepoPath}\"", // 关键：加上仓库路径
-            WorkingDirectory = _repositoryPath, // 或 Path.GetDirectoryName(fullRepoPath)
+            Arguments = arguments,
+            WorkingDirectory = _repositoryPath,
             UseShellExecute = false,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
@@ -125,40 +86,37 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
             CreateNoWindow = true
         };
         logger.LogInformation(
-            "Executing Git command for advertisement: {StartInfoFileName} {StartInfoArguments} in {StartInfoWorkingDirectory}"
-            , startInfo.FileName, startInfo.Arguments, startInfo.WorkingDirectory);
-        using var process = new Process();
-        process.StartInfo = startInfo;
+            "Executing {LogContext}: {FileName} {Arguments} in {WorkingDirectory}",
+            logContext, startInfo.FileName, startInfo.Arguments, startInfo.WorkingDirectory);
+        using var process = new Process { StartInfo = startInfo };
         try
         {
             process.Start();
-            // Close standard input immediately as there's no body for GET requests
+            if (hasRequestBody && requestBody is { CanRead: true })
+            {
+                await requestBody.CopyToAsync(process.StandardInput.BaseStream);
+            }
             process.StandardInput.Close();
-            // Stream Git process output directly to the response body
             await process.StandardOutput.BaseStream.CopyToAsync(responseBody);
             await process.WaitForExitAsync();
             var errorOutput = await process.StandardError.ReadToEndAsync();
             if (!string.IsNullOrWhiteSpace(errorOutput))
             {
-                logger.LogError("Git command stderr: {ErrorOutput}", errorOutput);
+                logger.LogError("Git process stderr ({LogContext}): {ErrorOutput}", logContext, errorOutput);
             }
-
             if (process.ExitCode == 0)
             {
                 return true;
             }
-
-            logger.LogError("Git command exited with code {ProcessExitCode} for path: {FullRepoPath}", process.ExitCode,
-                fullRepoPath);
+            logger.LogError("Git process exited with code {ExitCode} for {LogContext} at path: {FullRepoPath}", process.ExitCode, logContext, fullRepoPath);
             return false;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error executing Git advertisement command for repository {RepoName}", repoName);
+            logger.LogError(ex, "Error executing {LogContext} for path {FullRepoPath}", logContext, fullRepoPath);
             return false;
         }
     }
-
 
     private string GetRepositoryPath(string username, string repository)
     {

@@ -1,4 +1,4 @@
-using Gorilla.Domain.Services;
+using GorillaBackend.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GorillaBackend.Controllers;
@@ -7,18 +7,14 @@ namespace GorillaBackend.Controllers;
 [Route("{username}/{repository}.git")]
 public class GitActionController(IGitService gitService) : ControllerBase
 {
-    /// <summary>
-    /// git-upload-pack (clone/fetch)
-    /// </summary>
-    [HttpPost("git-upload-pack")]
-    public async Task<IActionResult> UploadPackAsync(string username, string repository)
+    private async Task<IActionResult> HandleGitCommand(string username, string repository, string command,
+        string contentType)
     {
         var repoName = Path.Combine(username, repository);
-        Response.ContentType = "application/x-git-upload-pack-result";
+        Response.ContentType = contentType;
         var ok = await gitService.ExecuteGitCommandAsync(
             repoName,
-            "upload-pack",
-            string.Empty,
+            command,
             Request.Body,
             Response.Body
         );
@@ -31,26 +27,21 @@ public class GitActionController(IGitService gitService) : ControllerBase
     }
 
     /// <summary>
+    /// git-upload-pack (clone/fetch)
+    /// </summary>
+    [HttpPost("git-upload-pack")]
+    public Task<IActionResult> UploadPackAsync(string username, string repository)
+    {
+        return HandleGitCommand(username, repository, "upload-pack", "application/x-git-upload-pack-result");
+    }
+
+    /// <summary>
     /// git-receive-pack (push)
     /// </summary>
     [HttpPost("git-receive-pack")]
-    public async Task<IActionResult> ReceivePackAsync(string username, string repository)
+    public Task<IActionResult> ReceivePackAsync(string username, string repository)
     {
-        var repoName = Path.Combine(username, repository);
-        Response.ContentType = "application/x-git-receive-pack-result";
-        var ok = await gitService.ExecuteGitCommandAsync(
-            repoName,
-            "receive-pack",
-            string.Empty,
-            Request.Body,
-            Response.Body
-        );
-        if (!ok)
-        {
-            return NotFound();
-        }
-
-        return new EmptyResult();
+        return HandleGitCommand(username, repository, "receive-pack", "application/x-git-receive-pack-result");
     }
 
     /// <summary>

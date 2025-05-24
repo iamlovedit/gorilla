@@ -1,5 +1,5 @@
 using Gorilla.Domain.DataTransferObjects.Repositories;
-using Gorilla.Domain.Services;
+using GorillaBackend.Services;
 using LibGit2Sharp;
 using Microsoft.AspNetCore.Mvc;
 

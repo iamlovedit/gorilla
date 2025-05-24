@@ -1,6 +1,4 @@
-using Gorilla.Domain.Models.Repositories;
-
-namespace Gorilla.Domain.Services;
+namespace GorillaBackend.Services;
 
 public interface IGitService
 {
@@ -8,8 +6,7 @@ public interface IGitService
 
     bool RepositoryExistsAsync(string username, string repository);
 
-    Task<bool> ExecuteGitCommandAsync(string repoName, string command, string args, Stream? requestBody,
-        Stream responseBody);
+    Task<bool> ExecuteGitCommandAsync(string repoName, string command, Stream? requestBody, Stream responseBody);
 
     Task<bool> ExecuteGitAdvertisementCommandAsync(string repoName, string service, Stream responseBody);
 }
