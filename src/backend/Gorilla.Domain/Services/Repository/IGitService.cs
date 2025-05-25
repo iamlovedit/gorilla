@@ -1,4 +1,4 @@
-namespace GorillaBackend.Services;
+namespace Gorilla.Domain.Services.Repository;
 
 public interface IGitService
 {

@@ -1,6 +1,6 @@
-using GorillaBackend.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
+using Gorilla.Domain.Services.Repository;
 using Microsoft.Extensions.Primitives;
 
 namespace GorillaBackend.Controllers;

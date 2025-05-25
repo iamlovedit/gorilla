@@ -1,10 +1,9 @@
 using System.Diagnostics;
 using System.Text;
-using GorillaBackend.Infrastructure;
-using LibGit2Sharp;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace GorillaBackend.Services;
+namespace Gorilla.Domain.Services.Repository;
 
 public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitService> logger) : IGitService
 {
@@ -18,13 +17,13 @@ public class GitService(IOptions<GitServerSettings> gitSettings, ILogger<GitServ
     {
         var repoPath = GetRepositoryPath(username, repository);
         Directory.CreateDirectory(Path.GetDirectoryName(repoPath) ?? throw new InvalidOperationException());
-        Repository.Init(repoPath, true);
+        LibGit2Sharp.Repository.Init(repoPath, true);
     }
 
     public bool RepositoryExistsAsync(string username, string repository)
     {
         var repoPath = GetRepositoryPath(username, repository);
-        return Directory.Exists(repoPath) && Repository.IsValid(repoPath);
+        return Directory.Exists(repoPath) && LibGit2Sharp.Repository.IsValid(repoPath);
     }
 
     public async Task<bool> ExecuteGitCommandAsync(

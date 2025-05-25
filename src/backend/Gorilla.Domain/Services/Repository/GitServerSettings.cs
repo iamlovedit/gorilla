@@ -1,4 +1,4 @@
-namespace GorillaBackend.Infrastructure;
+namespace Gorilla.Domain.Services.Repository;
 
 public class GitServerSettings
 {

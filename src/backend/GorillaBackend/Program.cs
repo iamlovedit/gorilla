@@ -1,5 +1,4 @@
-using GorillaBackend.Infrastructure;
-using GorillaBackend.Services;
+using Gorilla.Domain.Services.Repository;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
