@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GorillaBackend", "GorillaBackend\GorillaBackend.csproj", "{955BADC5-6D71-4C3E-9066-1AC9302B80D9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gorilla.Repository", "Gorilla.Repository\Gorilla.Repository.csproj", "{955BADC5-6D71-4C3E-9066-1AC9302B80D9}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gorilla.Domain", "Gorilla.Domain\Gorilla.Domain.csproj", "{DF7FC5C9-B1CD-481B-897C-5BD516256933}"
 EndProject

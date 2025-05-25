@@ -3,7 +3,7 @@ using System.Text;
 using Gorilla.Domain.Services.Repository;
 using Microsoft.Extensions.Primitives;
 
-namespace GorillaBackend.Controllers;
+namespace Gorilla.Repository.Controllers;
 
 [ApiController]
 [Route("{username}/{repository}.git")]

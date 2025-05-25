@@ -3,7 +3,7 @@ using Gorilla.Domain.Services.Repository;
 using LibGit2Sharp;
 using Microsoft.AspNetCore.Mvc;
 
-namespace GorillaBackend.Controllers;
+namespace Gorilla.Repository.Controllers;
 
 [ApiController]
 [Route("repository")]
