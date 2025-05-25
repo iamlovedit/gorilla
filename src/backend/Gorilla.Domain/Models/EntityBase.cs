@@ -6,5 +6,7 @@ public class EntityBase<T> where T : IEquatable<T>
 
     public T Id { get; set; }
 
-    public DateTime CreatedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public T CreatorId { get; set; }
 }
