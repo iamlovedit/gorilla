@@ -18,9 +18,4 @@
       <ProjectReference Include="..\Gorilla.Domain\Gorilla.Domain.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Infrastructure\" />
-      <Folder Include="Services\" />
-    </ItemGroup>
-
 </Project>
